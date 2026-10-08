@@ -3,7 +3,8 @@
 const $ = selector => document.querySelector(selector);
 const categories = {work: "Работа", personal: "Личное", study: "Учёба", space: "Космос"};
 const today = dayString(new Date());
-const state = {events: [], selected: today, cursor: parseDay(today), mini: parseDay(today), view: "month", agendaAll: false, query: "", filters: new Set(Object.keys(categories)), editing: null, busy: false, loading: true, deleted: null};
+const state = {events: [], selected: today, cursor: parseDay(today), mini: parseDay(today), view: "month", agendaAll: false, query: "", filters: new Set(Object.keys(categories)), editing: null, busy: false, loading: true, deleted: null, user: null, authVersion: 0};
+let authMode = "login";
 let toastTimer;
 let beforeSearch = null;
 
@@ -29,12 +30,18 @@ function onDay(events, day) { return events.filter(event => event.date === day);
 async function request(path, method = "GET", data) {
   const response = await fetch(path, {method, headers: data ? {"Content-Type": "application/json"} : {}, body: data ? JSON.stringify(data) : undefined});
   const value = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(value?.error || "Не удалось выполнить запрос");
+  if (!response.ok) {
+    if (response.status === 401 && !path.startsWith("/api/auth/")) showAuth();
+    const error = new Error(value?.error || "Не удалось выполнить запрос"); error.status = response.status; throw error;
+  }
   return value;
 }
 async function loadEvents() {
+  const version = state.authVersion;
   try {
-    state.events = await request("/api/events");
+    const events = await request("/api/events");
+    if (version !== state.authVersion || !state.user) return;
+    state.events = events;
     state.loading = false;
     render();
     updateConnection();
@@ -47,8 +54,8 @@ async function loadEvents() {
   }
 }
 function updateConnection() {
-  const sample = state.events.some(event => event.id.startsWith("demo-"));
-  $("#connection-status").textContent = sample ? "Локальное хранение · есть демо-события" : "Сохранено на этом устройстве";
+  const sample = state.events.some(event => event.description.startsWith("Демо-событие"));
+  $("#connection-status").textContent = sample ? "Сохранено · есть демо-события" : "Сохранено в вашем календаре";
   $("#connection-status").classList.remove("error");
 }
 function render() {
@@ -141,7 +148,7 @@ function renderDay(events) {
   $("#selected-title").textContent = formatDay(state.selected, {day: "numeric", month: "long"});
   const completed = daily.filter(event => event.completed).length;
   $("#selected-summary").textContent = `${formatDay(state.selected, {weekday: "long"})} · ${plural(daily.length)}${completed ? ` · ${completed} завершено` : ""}`;
-  $("#day-events").innerHTML = daily.length ? daily.map(event => `<article class="day-event category-${event.category}${event.completed ? " completed" : ""}"><div class="event-time">${icon("clock")}${esc(eventTime(event))}</div><button class="event-title-button" data-event="${esc(event.id)}">${esc(event.title)}</button>${completionButton(event)}${event.location ? `<p class="event-description">${esc(event.location)}</p>` : event.description ? `<p class="event-description">${esc(event.description)}</p>` : ""}<span class="category-tag">${categories[event.category]}</span></article>`).join("") : `<div class="day-empty">${icon("orbit")}<p>${state.loading ? "Загружаем события…" : "Свободный день.<br>Каким будет ваш следующий шаг?"}</p><button class="create-event">+ Добавить событие</button></div>`;
+  $("#day-events").innerHTML = daily.length ? daily.map(event => `<article class="day-event category-${event.category}${event.completed ? " completed" : ""}"><div class="event-time">${icon("clock")}${esc(eventTime(event))}</div><button class="event-title-button" data-event="${esc(event.id)}">${esc(event.title)}</button>${completionButton(event)}${event.location ? `<p class="event-description">${esc(event.location)}</p>` : event.description ? `<p class="event-description">${esc(event.description)}</p>` : ""}<span class="category-tag">${categories[event.category]}</span>${event.processingStatus === "pending" ? '<span class="processing-badge">Подготовка…</span>' : ""}</article>`).join("") : `<div class="day-empty">${icon("orbit")}<p>${state.loading ? "Загружаем события…" : "Свободный день.<br>Каким будет ваш следующий шаг?"}</p><button class="create-event">+ Добавить событие</button></div>`;
   const upcoming = events.filter(event => event.date > state.selected && !event.completed).slice(0, 3);
   $("#upcoming-events").innerHTML = upcoming.length ? upcoming.map(event => `<button class="upcoming category-${event.category}" data-event="${esc(event.id)}"><span class="upcoming-date"><strong>${parseDay(event.date).getDate()}</strong><small>${esc(formatDay(event.date, {month: "short"}).replace(".", ""))}</small></span><span class="upcoming-copy"><strong>${esc(event.title)}</strong><span><span class="category-dot"></span>${event.allDay ? "Весь день" : esc(event.start)} · ${categories[event.category]}</span></span></button>`).join("") : '<p class="empty-upcoming">Здесь появятся ваши ближайшие планы.</p>';
 }
@@ -168,7 +175,7 @@ function setView(view, all = false) {
   render();
 }
 function openEditor(event = null) {
-  if (state.loading) return;
+  if (state.loading || !state.user) return;
   state.editing = event;
   const form = $("#event-form");
   form.reset();
@@ -355,5 +362,66 @@ document.addEventListener("keydown", event => {
   if (event.key.toLowerCase() === "n" || event.key.toLowerCase() === "т") { event.preventDefault(); openEditor(); }
   if (event.key === "/") { event.preventDefault(); $("#search").focus(); }
 });
+function setAuthMode(mode) {
+  authMode = mode;
+  const registration = mode === "register";
+  $("#auth-name-label").hidden = !registration;
+  $("#auth-name").required = registration;
+  $("#auth-password").autocomplete = registration ? "new-password" : "current-password";
+  $("#auth-submit").textContent = registration ? "Создать аккаунт" : "Войти на орбиту";
+  $("#auth-login-tab").classList.toggle("selected", !registration);
+  $("#auth-login-tab").setAttribute("aria-pressed", !registration);
+  $("#auth-register-tab").classList.toggle("selected", registration);
+  $("#auth-register-tab").setAttribute("aria-pressed", registration);
+  $("#auth-error").hidden = true;
+}
+function showAuth() {
+  state.authVersion++;
+  state.user = null; state.events = []; state.deleted = null; state.editing = null;
+  state.query = ""; $("#search").value = ""; beforeSearch = null;
+  $("#auth-screen").hidden = false;
+  $(".app-shell").inert = true;
+  $("#logout").hidden = true;
+  $("#toast").hidden = true;
+  if ($("#event-dialog").open) $("#event-dialog").close();
+  render();
+}
+async function signedIn(user) {
+  state.authVersion++; state.user = user; state.loading = true;
+  $("#auth-screen").hidden = true; $(".app-shell").inert = false; $("#logout").hidden = false;
+  $(".profile strong").textContent = user.name;
+  $(".profile div > span").textContent = user.email;
+  $(".avatar").textContent = [...user.name][0]?.toUpperCase() || "К";
+  $("#auth-password").value = "";
+  await loadEvents();
+}
+async function initializeSession() {
+  try { await signedIn(await request("/api/auth/me")); }
+  catch (error) { state.loading = false; showAuth(); if (error.status !== 401) { $("#auth-error").textContent = "Не удалось связаться с сервером. Проверьте его запуск."; $("#auth-error").hidden = false; } }
+}
+$("#auth-login-tab").addEventListener("click", () => setAuthMode("login"));
+$("#auth-register-tab").addEventListener("click", () => setAuthMode("register"));
+$("#auth-form").addEventListener("submit", async event => {
+  event.preventDefault(); const mode = authMode;
+  const payload = {email: $("#auth-email").value, password: $("#auth-password").value};
+  if (mode === "register") payload.name = $("#auth-name").value;
+  const controls = [...event.target.elements, $("#auth-login-tab"), $("#auth-register-tab")];
+  controls.forEach(control => control.disabled = true); $("#auth-error").hidden = true;
+  try { const result = await request(`/api/auth/${mode}`, "POST", payload); await signedIn(result.user); }
+  catch (error) { $("#auth-error").textContent = error.message; $("#auth-error").hidden = false; }
+  finally { controls.forEach(control => control.disabled = false); }
+});
+$("#logout").addEventListener("click", async () => {
+  $("#logout").disabled = true;
+  try { await request("/api/auth/logout", "POST"); showAuth(); $("#auth-password").value = ""; }
+  catch (error) { if (error.status === 401) showAuth(); else notify(error.message, true); }
+  finally { $("#logout").disabled = false; }
+});
+setInterval(async () => {
+  if (!state.user || state.busy || document.hidden || !state.events.some(event => event.processingStatus === "pending")) return;
+  const version = state.authVersion;
+  try { const events = await request("/api/events"); if (version === state.authVersion && state.user) { state.events = events; render(); } }
+  catch { /* The next interaction reports connectivity errors. */ }
+}, 3000);
 render();
-loadEvents();
+initializeSession();

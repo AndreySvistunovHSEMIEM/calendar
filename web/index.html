@@ -29,7 +29,14 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
     <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M14 5c2-2 5-2 6-1 1 1 1 4-1 6l-7 7-5-5 7-7ZM7 12l-3 1-1 4 5-1m4 1-1 4 4-1 1-3M5 19l-2 2"/><circle cx="16" cy="8" r="1.5"/></symbol>
   </svg>
-  <div class="app-shell">
+  <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-card"><a class="brand" href="/"><span class="brand-mark"><svg><use href="#i-orbit"/></svg></span><span>орбита<span class="brand-caption">ПРОСТРАНСТВО ДЛЯ ПЛАНОВ</span></span></a>
+      <div class="eyebrow">ВАША ПЕРСОНАЛЬНАЯ ВСЕЛЕННАЯ</div><h1 id="auth-title">Добро пожаловать<br>на орбиту</h1><p class="auth-intro">Войдите, чтобы открыть свой календарь.<br>У каждого путешественника — свои планы.</p>
+      <div class="auth-tabs" role="group" aria-label="Вход или регистрация"><button id="auth-login-tab" class="selected" aria-pressed="true">Войти</button><button id="auth-register-tab" aria-pressed="false">Создать аккаунт</button></div>
+      <form id="auth-form"><label id="auth-name-label" hidden>Ваше имя<input id="auth-name" name="name" maxlength="80" autocomplete="name" placeholder="Как к вам обращаться?"></label><label>Email<input id="auth-email" name="email" type="email" maxlength="254" required autocomplete="username" placeholder="you@example.com"></label><label>Пароль<input id="auth-password" name="password" type="password" minlength="8" maxlength="72" required autocomplete="current-password" placeholder="Не менее 8 символов"></label><p id="auth-error" class="form-error" role="alert" hidden></p><button id="auth-submit" class="primary" type="submit">Войти на орбиту</button></form><p class="auth-note">События доступны только в вашем аккаунте.</p>
+    </div>
+  </section>
+  <div class="app-shell" inert>
     <aside class="sidebar">
       <a class="brand" href="/" aria-label="Орбита — главная"><span class="brand-mark"><svg><use href="#i-orbit"/></svg></span><span>орбита<span class="brand-caption">ПРОСТРАНСТВО ДЛЯ ПЛАНОВ</span></span></a>
       <button class="primary create-event"><svg class="icon"><use href="#i-plus"/></svg> Новое событие <kbd>N</kbd></button>
@@ -39,7 +46,7 @@
       <div class="sidebar-bottom"><div class="thought"><svg class="icon"><use href="#i-star"/></svg><p>Большие открытия<br>начинаются с маленьких планов.</p></div><a class="export-link" href="/api/export" download><svg class="icon"><use href="#i-download"/></svg> Экспорт календаря</a><div class="profile"><span class="avatar">К</span><div><strong>Космический путешественник</strong><span>Личное пространство</span></div><span class="online-dot" title="Локальное приложение"></span></div></div>
     </aside>
     <main class="main">
-      <header class="topbar"><div class="breadcrumb">Моё пространство <span>/</span> <strong>Календарь</strong></div><div class="topbar-right"><label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Найти событие" aria-label="Найти событие"><kbd>/</kbd></label><span class="local-badge"><span></span> На вашей орбите</span></div></header>
+      <header class="topbar"><div class="breadcrumb">Моё пространство <span>/</span> <strong>Календарь</strong></div><div class="topbar-right"><label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Найти событие" aria-label="Найти событие"><kbd>/</kbd></label><button id="logout" class="logout-button" hidden>Выйти</button></div></header>
       <div class="workspace">
         <section class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> ВАША ПЕРСОНАЛЬНАЯ ВСЕЛЕННАЯ</div><h1>У каждого плана<br>есть своя орбита<span>.</span></h1><p>Находите время для главного.<br>Остальное — просто космическая пыль.</p><div class="hero-tag"><svg class="icon"><use href="#i-orbit"/></svg><span id="hero-date"></span><span class="tag-divider"></span><span id="hero-count"></span></div></div><div class="space-art" aria-hidden="true"><div class="star star-one"></div><div class="star star-two"></div><div class="star star-three"></div><div class="planet-orbit orbit-one"></div><div class="planet-orbit orbit-two"></div><div class="planet-ring ring-back"></div><div class="planet"></div><div class="planet-ring ring-front"></div><div class="moon"></div><span class="art-caption">MAKE ROOM FOR YOUR UNIVERSE</span></div></section>
         <div class="calendar-layout">

@@ -1,0 +1,281 @@
+{
+  "uid": "orbita-overview",
+  "title": "Orbita service overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "tags": [
+    "orbita",
+    "coursework"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP requests per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(orbita_http_requests_total[1m]))",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP error responses",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(orbita_http_requests_total{code=~\"4..|5..\"})",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "API p95 latency in seconds",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le)(rate(orbita_http_request_duration_seconds_bucket[1m])))",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Background jobs",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by(service,outcome)(orbita_jobs_total)",
+          "refId": "A",
+          "legendFormat": "{{service}} / {{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Services available",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "up{job=~\"orbita-api|orbita-worker|orbita-loadgen\"}",
+          "refId": "A",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Load generator requests per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(orbita_load_requests_total[1m]))",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Load generator p95 latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le)(rate(orbita_load_request_duration_seconds_bucket[1m])))",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "API goroutines",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "orbita-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "go_goroutines{job=\"orbita-api\"}",
+          "refId": "A",
+          "legendFormat": "total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

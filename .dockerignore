@@ -1,0 +1,7 @@
+.git
+.env
+.qa
+data
+bin
+docs/*.png
+docs/*.json

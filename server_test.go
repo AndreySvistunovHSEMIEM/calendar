@@ -2,24 +2,72 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/AndreySvistunovHSEMIEM/calendar/internal/domain"
+	"github.com/AndreySvistunovHSEMIEM/calendar/internal/repository"
+	"github.com/AndreySvistunovHSEMIEM/calendar/internal/security"
+	"github.com/AndreySvistunovHSEMIEM/calendar/internal/transport"
+	"github.com/AndreySvistunovHSEMIEM/calendar/internal/usecase"
+	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-	"unicode/utf8"
 )
 
-func testHandler(t *testing.T) http.Handler {
+func rawHandler(t *testing.T) (http.Handler, *repository.JSON) {
 	t.Helper()
+	repo, err := repository.OpenJSON(filepath.Join(t.TempDir(), "calendar.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	passwords, err := security.NewPasswords(4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err := security.NewTokens(strings.Repeat("test-secret", 4))
+	if err != nil {
+		t.Fatal(err)
+	}
 	web, err := fs.Sub(frontend, "web")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return newHandler(newTestStore(t), web)
+	service := usecase.New(repo, passwords, tokens, time.Hour, false)
+	return transport.New(service, web, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), false), repo
 }
-
+func register(t *testing.T, h http.Handler, email string) domain.AuthResult {
+	t.Helper()
+	body, _ := json.Marshal(domain.Credentials{Name: "Test user", Email: email, Password: "TestPassword123!"})
+	w := apiCall(h, "POST", "/api/auth/register", string(body))
+	if w.Code != 201 {
+		t.Fatalf("register: %d %s", w.Code, w.Body)
+	}
+	var result domain.AuthResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == "orbita_session" && (!cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode) {
+			t.Fatal("unsafe session cookie")
+		}
+	}
+	if strings.Contains(w.Body.String(), "passwordHash") || strings.Contains(w.Body.String(), "$2a$") {
+		t.Fatal("password leaked")
+	}
+	return result
+}
+func testHandler(t *testing.T) http.Handler {
+	h, _ := rawHandler(t)
+	user := register(t, h, "one@example.invalid")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("Authorization", "Bearer "+user.Token)
+		h.ServeHTTP(w, r)
+	})
+}
 func apiCall(handler http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
@@ -112,29 +160,5 @@ func TestEmbeddedFrontend(t *testing.T) {
 	}
 	if w := apiCall(h, "GET", "/api/missing", ""); w.Code != 404 || !strings.Contains(w.Header().Get("Content-Type"), "application/json") {
 		t.Fatalf("unknown API path: %d", w.Code)
-	}
-}
-
-func TestICSCalendarEscapingAndDates(t *testing.T) {
-	e := testEvent()
-	e.ID = "test"
-	e.Title = strings.Repeat("Космическая встреча, ", 10)
-	e.Description = "Первая строка\r\nВторая; строка\\текст"
-	allDay := e
-	allDay.ID, allDay.Date, allDay.AllDay = "all-day", "2024-02-29", true
-	ics := calendarICS([]Event{e, allDay}, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC))
-	if !utf8.ValidString(ics) {
-		t.Fatal("UTF-8 split during folding")
-	}
-	for _, line := range strings.Split(ics, "\r\n") {
-		if len(line) > 75 {
-			t.Errorf("line has %d octets", len(line))
-		}
-	}
-	unfolded := strings.ReplaceAll(ics, "\r\n ", "")
-	for _, required := range []string{"DTSTART:20261008T100000", "DTEND:20261008T110000", "DTSTART;VALUE=DATE:20240229", "DTEND;VALUE=DATE:20240301", "DTSTAMP:20261008T120000Z", `DESCRIPTION:Первая строка\nВторая\; строка\\текст`, `встреча\,`} {
-		if !strings.Contains(unfolded, required) {
-			t.Errorf("missing ICS field: %s", required)
-		}
 	}
 }

@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: orbita-api
+    static_configs:
+      - targets: [api:8080]
+  - job_name: orbita-worker
+    static_configs:
+      - targets: [worker:8082]
+  - job_name: orbita-loadgen
+    static_configs:
+      - targets: [loadgen:8083]

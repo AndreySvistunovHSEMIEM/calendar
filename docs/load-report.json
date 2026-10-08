@@ -1,0 +1,10 @@
+{
+  "users": 20,
+  "requests": 599,
+  "errors": 0,
+  "durationSeconds": 30.00329568,
+  "requestsPerSecond": 19.964473449471402,
+  "p50Millis": 2.032541,
+  "p95Millis": 3.7312909999999997,
+  "timestamp": "2026-10-08T13:18:27.465687965Z"
+}
